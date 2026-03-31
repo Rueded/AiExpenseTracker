@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*' # 当你给代码打上 v 开头的标签（如 v2.0.0）时触发
+      
+permissions:
+  contents: write
 
 jobs:
   build:
