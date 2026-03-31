@@ -17,9 +17,12 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      # 🟢 核心补丁：赋予 gradlew 执行权限
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Build with Gradle
-        # 🟢 如果你想打测试版，这里可以先用 assembleDebug 跑通流程
-        run: ./gradlew assembleDebug 
+        run: ./gradlew assembleDebug
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
