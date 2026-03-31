@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1098799075638",
+    "firebase_url": "https://ai-expense-tracker-0-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "ai-expense-tracker-0",
+    "storage_bucket": "ai-expense-tracker-0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1098799075638:android:d31f826eb4654761cb2397",
+        "android_client_info": {
+          "package_name": "com.example.aiexpensetracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXQdKmeaVH5TIOeVJHjr3xR7uhEUYkwbI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
