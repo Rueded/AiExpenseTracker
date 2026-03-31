@@ -18,11 +18,13 @@ jobs:
           cache: gradle
 
       - name: Build with Gradle
-        run: ./gradlew assembleRelease
+        # 🟢 如果你想打测试版，这里可以先用 assembleDebug 跑通流程
+        run: ./gradlew assembleDebug 
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: app/build/outputs/apk/release/app-release.apk # 你的 APK 路径
+          # 🟢 这里的路径改为通配符，它会自动去搜 app/build/outputs 目录下所有的 .apk 文件
+          files: app/build/outputs/apk/**/*.apk 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
