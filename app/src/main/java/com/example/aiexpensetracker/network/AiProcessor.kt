@@ -9,12 +9,13 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Locale
+import com.example.aiexpensetracker.BuildConfig
 
 object AiProcessor {
     private const val TAG = "AiProcessor"
 
     // 🔴 警告：请确保这里填入了你的真实内部 API Key (作为免费用户的保底 Key)
-    private const val INTERNAL_API_KEY = "AIzaSyB7Jw5wriXBcqHUqwoqqL62K_gGTkJuUnw" // 请填回你的 Key
+    private val INTERNAL_API_KEY = BuildConfig.INTERNAL_API_KEY
 
     // 🟢 核心修改 1：新增一个动态获取 Model 的辅助方法
     private fun getModel(customApiKey: String?, customModelName: String?): GenerativeModel {
