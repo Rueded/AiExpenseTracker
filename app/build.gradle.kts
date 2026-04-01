@@ -16,8 +16,8 @@ android {
         applicationId = "com.example.aiexpensetracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 17
-        versionName = "3.4.0"
+        versionCode = 18
+        versionName = "3.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
