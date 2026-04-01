@@ -21,7 +21,7 @@ object AiProcessor {
     private fun getModel(customApiKey: String?, customModelName: String?): GenerativeModel {
         val keyToUse = if (!customApiKey.isNullOrBlank()) customApiKey else INTERNAL_API_KEY
         // 默认使用 gemini-2.0-flash，如果用户填了就用用户填的
-        val modelToUse = if (!customModelName.isNullOrBlank()) customModelName else "gemini-3-flash"
+        val modelToUse = if (!customModelName.isNullOrBlank()) customModelName else "gemini-3-flash-preview"
 
         return GenerativeModel(
             modelName = modelToUse,

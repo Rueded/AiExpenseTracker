@@ -49,21 +49,26 @@ class NotificationListener : NotificationListenerService() {
         private val dbMutex = kotlinx.coroutines.sync.Mutex()
 
         private val TARGET_PACKAGES = setOf(
+            // ==========================================
+            // 1. 你原有的包名 (原封不动保留)
+            // ==========================================
             "my.com.tngdigital.ewallet",    // TNG eWallet
             "com.grabtaxi.passenger",       // Grab
             "com.shopee.my",                // Shopee
+            "com.shopeepay.my",             // ShopeePay
             "my.com.myboost",               // Boost
-            "com.airasia.bigpay",           // BigPay
+            "com.airasia.bigpay",           // BigPay (旧版)
             "com.maybank2u.life",           // MAE
-            "com.cimb.octo",                // CIMB Octo
-            "com.cimb.clicks.android",      // CIMB Clicks
+            "com.cimb.octo",                // CIMB Octo (可能无效)
+            "com.cimb.clicks.android",      // CIMB Clicks (可能无效)
             "my.com.rhbgroup.mobilebanking",// RHB Old
             "my.com.rhbgroup.rhbmobilebanking",// RHB Old
             "com.rhbgroup.rhbengineering",  // RHB New
-            "com.rhbgroup.rhbmobilebanking",// RHB New
+            "com.rhbgroup.rhbmobilebanking",// RHB New (准确的最新版)
             "com.hongleong.pb",             // HLB
             "my.com.mybsn",                 // BSN
             "com.mybsn.mobile",             // BSN
+            "com.bsn.mybsn",                // BSN (准确)
             "net.mybsn.secure",             // BSN
             "com.ambank.ambank",            // AmBank
             "my.com.publicbank.pbe",        // Public Bank
@@ -73,7 +78,51 @@ class NotificationListener : NotificationListenerService() {
             "com.sc.breeze.my",             // Standard Chartered
             "my.com.hsbc.hsbcmobilebanking",// HSBC
             "com.ocbc.mobile",              // OCBC
-            "com.uob.mighty.my",             // UOB
+            "com.uob.mighty.my",            // UOB (旧版 Mighty)
+
+            // ==========================================
+            // 2. 🟢 新增：传统银行 (修正后的最新准确包名)
+            // ==========================================
+            "com.maybank2u.m2u",            // Maybank2u (旧版黄App，很多人还在用)
+            "com.cimb.cimbocto",            // CIMB OCTO MY (目前真正的包名)
+            "com.cimbmalaysia",             // CIMB Clicks Malaysia (目前真正的包名)
+            "my.com.rhb.mobilebanking",     // RHB Mobile Banking (常见旧版)
+            "my.com.hongleongconnect.mobile",// HLB Connect (目前真正的包名)
+            "com.publicbank.pbengage",      // PB engage MY (目前真正的包名)
+            "com.ambank.ambankonline",      // AmOnline (目前真正的包名)
+            "com.ambank.amonline",          // AmOnline (备用)
+            "com.alliance.online.mobile",   // Alliance online mobile (目前真正的包名)
+            "com.bankislam.bimbmobile",     // Bank Islam GO (目前真正的包名)
+            "my.com.bankrakyat.irakyat",    // iRakyat Mobile Banking
+            "com.affinbank.affinalways",    // AffinAlways (Affin Bank 新版)
+            "com.affinonline.rib",          // Affin Bank (旧版)
+            "com.uob.tmrw.my",              // UOB TMRW Malaysia (取代了 Mighty)
+            "com.ocbc.my",                  // OCBC Malaysia
+            "com.ocbc.mobilebanking.my",    // OCBC Malaysia (备用)
+            "hk.com.hsbc.hsbcmalaysia",     // HSBC Malaysia (本地版)
+            "com.htsu.hsbcpersonalbanking", // HSBC (全球通用版)
+            "com.standardchartered.breeze.my", // SC Mobile (备用)
+
+            // ==========================================
+            // 3. 🟣 新增：最新数字银行 (Digital Banks - 记账必备)
+            // ==========================================
+            "my.gxbank.my",                 // GXBank (目前最火的数字银行)
+            "my.com.aeonbank.app",          // AEON Bank (伊斯兰数字银行)
+            "com.bankislam.beu",            // Be U by Bank Islam
+            "com.alrajhi.rize",             // Rize (Al Rajhi Bank 数字银行)
+
+            // ==========================================
+            // 4. 🟡 新增：电子钱包与其他生活支付 (E-Wallets)
+            // ==========================================
+            "com.tpa.airasiacard",          // BigPay (目前真正的包名，极其重要)
+            "com.setel.mobile",             // Setel (Petronas 打油必备)
+            "com.aeoncredit.wallet.my",     // AEON Wallet Malaysia
+            "com.lazada.android",           // Lazada (Lazada Wallet 扣款)
+            "com.google.android.apps.walletnfcrel", // Google Wallet (NFC 刷卡通知)
+            "com.samsung.android.spay",     // Samsung Pay
+            "com.paypal.android.p2pmobile", // PayPal
+            "com.transferwise.android",     // Wise (跨国汇款/支付)
+            "com.eg.android.AlipayGphone"   // Alipay (支付宝，如果你有时用的话)
         )
     }
 
