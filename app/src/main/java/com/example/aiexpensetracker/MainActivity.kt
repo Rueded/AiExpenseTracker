@@ -1,14 +1,15 @@
 package com.example.aiexpensetracker
 
 import android.Manifest
-import android.content.ComponentName // 🟢 新增
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.util.Log // 🟢 新增
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -36,7 +37,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.ViewModelProvider
-import com.example.aiexpensetracker.service.NotificationListener // 🟢 新增引用
+import com.example.aiexpensetracker.service.NotificationListener
 import com.example.aiexpensetracker.ui.HomeScreen
 import com.example.aiexpensetracker.ui.theme.AiExpenseTrackerTheme
 import com.example.aiexpensetracker.viewmodel.HomeViewModel
@@ -46,6 +47,10 @@ import androidx.compose.runtime.setValue
 import java.util.concurrent.Executor
 
 class MainActivity : AppCompatActivity() {
+
+    // 🟢 把 viewModel 提出来，让全类都能访问
+    private lateinit var viewModel: HomeViewModel
+
     private fun pokeNotificationService() {
         val context = this
         val isEnabled = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
@@ -54,8 +59,6 @@ class MainActivity : AppCompatActivity() {
             val componentName = ComponentName(context, NotificationListener::class.java)
             val pm = context.packageManager
 
-            // 🚀 极客骚操作：通过快速切换组件的“禁用/启用”状态，强制 Android 重新绑定(Rebind)监听器
-            // 这解决了更新后或长期后台被杀导致的“断连”问题，而不需要用户重新开关按钮
             try {
                 pm.setComponentEnabledSetting(componentName, PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP)
                 pm.setComponentEnabledSetting(componentName, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
@@ -69,7 +72,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val viewModel = ViewModelProvider(this)[HomeViewModel::class.java]
+        viewModel = ViewModelProvider(this)[HomeViewModel::class.java]
         viewModel.checkGoogleLogin(this)
 
         // 检查是否是从通知栏点进来的
@@ -77,6 +80,9 @@ class MainActivity : AppCompatActivity() {
         if (expenseIdFromNotif != -1) {
             viewModel.triggerEditFromNotification(expenseIdFromNotif)
         }
+
+        // 🟢 1. 处理刚启动 App 时接到的分享图片
+        handleSharedIntent(intent)
 
         val prefs = getSharedPreferences("ai_tracker_prefs", Context.MODE_PRIVATE)
         val savedDarkMode = prefs.getBoolean("dark_mode", false)
@@ -110,10 +116,9 @@ class MainActivity : AppCompatActivity() {
                 var hasListenerPermission by remember { mutableStateOf(isNotificationServiceEnabled()) }
                 var isUnlocked by remember { mutableStateOf(false) }
 
-                // 🟢 核心修改 2：每次回到 App (Resume) 不仅更新权限状态，还顺便捅一下 Service 确保它活着
                 LifecycleEffect(onResume = {
                     hasListenerPermission = isNotificationServiceEnabled()
-                    pokeNotificationService() // ⬅️ 关键唤醒逻辑
+                    pokeNotificationService()
                 })
 
                 val canAuth = remember { checkBiometricSupport() }
@@ -139,6 +144,33 @@ class MainActivity : AppCompatActivity() {
                             LockScreen(onAuthenticate = { authenticateUser { success -> if (success) isUnlocked = true } })
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // 🟢 2. 处理 App 已经在后台运行时收到的分享图片
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent) // 更新当前的 Intent
+        handleSharedIntent(intent)
+    }
+
+    // 🟢 3. 解析图片的专用方法
+    private fun handleSharedIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
+
+            val imageUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            }
+
+            if (imageUri != null) {
+                // 拿到图片后，立刻唤醒 ViewModel 里的 AI 开始分析！
+                viewModel.scanReceipt(this, imageUri) {
+                    // 分析完成后，HomeScreen 会监听到 scannedReceipt 变化并自动弹窗
                 }
             }
         }
@@ -197,7 +229,6 @@ fun LockScreen(onAuthenticate: () -> Unit) {
     }
 }
 
-// 🟢 这里的权限请求是指“读取通知”的权限 (Notification Listener)
 @Composable
 fun PermissionScreen() {
     val context = LocalContext.current

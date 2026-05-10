@@ -218,6 +218,22 @@
     <string name="update_downloading">Downloading update: %1$d%%</string>
     <string name="update_download_start">Download started. Check notification bar for progress.</string>
     <string name="update_download_failed">Download failed. Please try again.</string>
+    <string name="chat_network_error">Brother, my network is a bit laggy right now. Can we try again later? ~</string>
+
+    <string name="chat_title">AI Assistant Yunnuo</string>
+    <string name="chat_welcome">Hi there! I\'m Yunnuo. You can tell me what you spent today, or ask me to check your past records anytime~</string>
+    <string name="chat_placeholder">e.g. How much did I spend on dinner yesterday...</string>
+    <string name="chat_loading_search">Yunnuo is flipping through the ledger...</string>
+    <string name="chat_loading_details">Recalling the details...</string>
+    <string name="chat_loading_summary">Summarizing data...</string>
+    <string name="chat_add_success">Got it! I\'ve recorded this transaction for you 👇</string>
+    <string name="chat_add_fail_amount">I didn\'t quite catch the amount, could you say it again?</string>
+
+    <string name="predict_title">Yunnuo\'s Prediction</string>
+    <string name="predict_message">Brother, did you spend at %1$s again today?</string>
+    <string name="predict_amount">Estimated cost: RM %1$s</string>
+    <string name="btn_record_it">Record It</string>
+    <string name="btn_no_need">Dismiss</string>
 
     <string name="toast_copied">Copied: %1$s</string>
     <string name="toast_payment_success">Payment Success! 🎉</string>

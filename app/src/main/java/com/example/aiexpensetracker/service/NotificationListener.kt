@@ -508,7 +508,7 @@ class NotificationListener : NotificationListenerService() {
 
         val invalidKeywords = listOf(
             // English
-            "promo", "cashback", "voucher", "discount", "winner", "win", "GO+",
+            "promo", "cashback", "voucher", "discount", "winner", "win",
             "campaign", "apply now", "deal", "login", "tac", "otp",
             "unsuccessful", "failed", "declined", "rejected",
             "password", "pin", "security", "reminder", // 移除了 alert

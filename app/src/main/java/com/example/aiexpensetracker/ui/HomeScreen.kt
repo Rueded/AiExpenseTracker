@@ -160,6 +160,12 @@ fun HomeScreen(
     val showPaywall by viewModel.showPaywall.collectAsState()
     val updateInfo by viewModel.updateInfo.collectAsState()
 
+    LaunchedEffect(scannedReceipt) {
+        if (scannedReceipt != null) {
+            showAddExpenseDialog = true
+        }
+    }
+
     LaunchedEffect(Unit) {
         // 每次启动主页，静默检查一次更新（不弹 Toast）
         viewModel.checkForUpdates(context, showToastIfLatest = false)
@@ -244,7 +250,14 @@ fun HomeScreen(
     var currentScreen by remember { mutableStateOf(AppScreen.Home) }
     var isBalanceVisible by remember { mutableStateOf(prefs.getBoolean("balance_visible", true)) }
 
-    BackHandler(enabled = currentScreen != AppScreen.Home) { currentScreen = AppScreen.Home }
+    // 🟢 1. 新增：控制聊天界面的开关
+    var showChatBot by remember { mutableStateOf(false) }
+
+    // 🟢 2. 修改：拦截系统返回键，如果在聊天界面，就先关掉聊天界面
+    BackHandler(enabled = currentScreen != AppScreen.Home || showChatBot) {
+        if (showChatBot) showChatBot = false
+        else currentScreen = AppScreen.Home
+    }
 
     val currentMonthMillis by viewModel.currentMonth.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -256,6 +269,7 @@ fun HomeScreen(
     val subscriptionSuggestions by viewModel.subscriptionSuggestions.collectAsState()
     val currentSuggestion = subscriptionSuggestions.firstOrNull() // 永远只显示队列里的第一个
     var suggestionToEdit by remember { mutableStateOf<SubscriptionSuggestion?>(null) } // 控制编辑弹窗
+    val smartPrediction by viewModel.smartPrediction.collectAsState()
 
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -289,7 +303,27 @@ fun HomeScreen(
         lifecycle.addObserver(listener)
         onDispose { lifecycle.removeObserver(listener) }
     }
+    if (showChatBot) {
+        val db = remember { com.example.aiexpensetracker.database.AppDatabase.getDatabase(context) }
 
+        ChatBotScreen(
+            dao = db.expenseDao(),
+            onBackClick = { showChatBot = false },
+            onAddTransaction = { newExpense ->
+                viewModel.addExpense(newExpense)
+            },
+            onExpenseClick = { clickedExpense ->
+                // 🟢 当用户点击气泡里的小卡片时，触发主页原本的编辑弹窗！
+                expenseToEdit = clickedExpense
+                showAddExpenseDialog = true
+            },
+            onDeleteTransaction = { expense ->
+                // 🟢 弹出一个确认框或者直接调用 viewModel 删除
+                viewModel.deleteExpense(expense)
+                Toast.makeText(context, "云糯已经帮你把这笔账擦掉啦！", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }else {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -352,17 +386,27 @@ fun HomeScreen(
             }
         },
         floatingActionButton = {
-            // 🟢 4. 修改 FAB：不再展开子菜单，而是点击后显示“选择来源”弹窗
             if (currentScreen == AppScreen.Home) {
-                FloatingActionButton(
-                    onClick = {
-                        // 点击打开选择弹窗
-                        showSourceSelectionDialog = true
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // 🟢 4. 新增：召唤云糯的专属按钮！(用 Tertiary 颜色和原版区分开)
+                    FloatingActionButton(
+                        onClick = { showChatBot = true },
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        contentColor = MaterialTheme.colorScheme.onTertiary
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "Chat with AI")
+                    }
+
+                    // 🟢 5. 原有的添加按钮 (保持你的逻辑不变)
+                    FloatingActionButton(
+                        onClick = {
+                            showSourceSelectionDialog = true
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+                    }
                 }
             }
         }
@@ -394,6 +438,61 @@ fun HomeScreen(
                                                 Button(onClick = { suggestionToEdit = suggestion }) {
                                                     Text("Yes, Add")
                                                 }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // 🟢 智能预测小卡片 (替换了硬编码中文)
+                        AnimatedVisibility(
+                            visible = smartPrediction != null,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut()
+                        ) {
+                            smartPrediction?.let { prediction ->
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                                Spacer(Modifier.width(4.dp))
+                                                // 🟢 替换：云糯的小预测
+                                                Text(stringResource(R.string.predict_title), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                            }
+                                            Spacer(Modifier.height(4.dp))
+                                            // 🟢 替换：哥哥，今天又在 XXX 消费了吗？
+                                            Text(stringResource(R.string.predict_message, prediction.merchant), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                            // 🟢 替换：预计花费: RM XXX
+                                            Text(stringResource(R.string.predict_amount, String.format("%.2f", prediction.amount)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                        }
+
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Button(
+                                                onClick = { viewModel.acceptPrediction(prediction) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                                modifier = Modifier.height(32.dp)
+                                            ) {
+                                                // 🟢 替换：记一笔
+                                                Text(stringResource(R.string.btn_record_it), fontSize = 12.sp)
+                                            }
+                                            Spacer(Modifier.height(8.dp))
+                                            TextButton(
+                                                onClick = { viewModel.dismissPrediction() },
+                                                contentPadding = PaddingValues(0.dp),
+                                                modifier = Modifier.height(20.dp)
+                                            ) {
+                                                // 🟢 替换：不用啦
+                                                Text(stringResource(R.string.btn_no_need), fontSize = 12.sp, color = Color.Gray)
                                             }
                                         }
                                     }
@@ -841,6 +940,7 @@ fun HomeScreen(
                 )
             }
         }
+    }
     }
 
     if (showAboutDialog) {
@@ -2914,7 +3014,7 @@ fun AboutScreen() {
 
             // 🟢 2. 修改：加上了连击触发器！
             Text(
-                text = "v3.4.3",
+                text = "v5.1.0",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray,
                 modifier = Modifier.clickable {

@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -136,6 +137,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _subscriptionSuggestions = MutableStateFlow<List<SubscriptionSuggestion>>(emptyList())
 
     val subscriptionSuggestions: StateFlow<List<SubscriptionSuggestion>> = _subscriptionSuggestions
+
+    // 🟢 1. 新增：存放云糯的智能预测
+    private val _smartPrediction = MutableStateFlow<ExpenseEntity?>(null)
+    val smartPrediction: StateFlow<ExpenseEntity?> = _smartPrediction.asStateFlow()
 
     // 🟢 AI 报告状态
     private val _monthlyReport = MutableStateFlow<AnalysisReportEntity?>(null)
@@ -853,6 +858,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
+        // 🟢 2. 新增：App 启动时，让云糯分析并预测哥哥的消费习惯
+        generateSmartPrediction()
+
         // 1. 初始化默认账户 (保持不变)
         viewModelScope.launch(Dispatchers.IO) {
             if (accountDao.getCount() == 0) {
@@ -874,6 +882,76 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 calculateMonthlyTrend()
             }
         }
+    }
+
+    // 🟢 3. 新增核心算法：分析哥哥的消费习惯
+    fun generateSmartPrediction() {
+        viewModelScope.launch(Dispatchers.IO) {
+            // 获取数据库里所有的流水
+            val allExpenses = _rawExpenses.firstOrNull() ?: return@launch
+
+            // 1. 获取当前时间的小时 (0-23)
+            val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+
+            // 2. 定义当前时间段 (早:5-10, 中:11-14, 下午:15-17, 晚:18-23)
+            val isMorning = currentHour in 5..10
+            val isLunch = currentHour in 11..14
+            val isAfternoon = currentHour in 15..17
+            val isEvening = currentHour in 18..23
+
+            // 3. 过滤出过去 30 天内的支出记录
+            val thirtyDaysAgo = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000L
+            val recentExpenses = allExpenses.filter { it.type == "EXPENSE" && it.timestamp >= thirtyDaysAgo }
+
+            // 4. 寻找在当前时间段发生最频繁的交易 (商户 + 金额)
+            val prediction = recentExpenses.filter { exp ->
+                val expHour = Calendar.getInstance().apply { timeInMillis = exp.timestamp }.get(Calendar.HOUR_OF_DAY)
+                when {
+                    isMorning -> expHour in 5..10
+                    isLunch -> expHour in 11..14
+                    isAfternoon -> expHour in 15..17
+                    isEvening -> expHour in 18..23
+                    else -> false
+                }
+            }.groupBy { "${it.merchant}_${it.amount}" } // 按照 商户+金额 分组
+                .maxByOrNull { it.value.size } // 找出出现次数最多的一组
+                ?.value?.firstOrNull()
+
+            // 5. 如果这个习惯在过去 30 天出现超过 3 次，云糯就大胆预测！
+            val frequency = recentExpenses.count { it.merchant == prediction?.merchant && it.amount == prediction?.amount }
+
+            // 检查今天是否已经记过这笔账了（防止重复推荐）
+            val todayStart = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
+            }.timeInMillis
+
+            val alreadyTrackedToday = recentExpenses.any {
+                it.timestamp >= todayStart && it.merchant == prediction?.merchant && it.amount == prediction?.amount
+            }
+
+            if (prediction != null && frequency >= 3 && !alreadyTrackedToday) {
+                _smartPrediction.value = prediction
+            } else {
+                _smartPrediction.value = null
+            }
+        }
+    }
+
+    // 🟢 4. 新增：一键采纳预测
+    fun acceptPrediction(expense: ExpenseEntity) {
+        val newExpense = expense.copy(
+            id = 0, // 设为 0 让数据库自动生成新 ID
+            timestamp = System.currentTimeMillis(), // 时间改为现在
+            // 👇 删除了 note = "云糯智能预测"，因为 copy() 会自动保留原账单的 note
+            originalText = "Smart Prediction" // 这个保留着，方便以后排查这是 AI 预测生成的
+        )
+        addExpense(newExpense)
+        dismissPrediction() // 记完就关掉卡片
+    }
+
+    // 🟢 5. 新增：关掉预测卡片
+    fun dismissPrediction() {
+        _smartPrediction.value = null
     }
 
     // 🟢 手动管理 AI 报告监听

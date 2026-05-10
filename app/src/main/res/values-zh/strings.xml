@@ -218,6 +218,22 @@
     <string name="update_downloading">正在下载更新: %1$d%%</string>
     <string name="update_download_start">开始下载，请在通知栏查看进度。</string>
     <string name="update_download_failed">下载失败，请稍后重试。</string>
+    <string name="chat_network_error">哥哥，云糯的网络有点卡卡的，稍等一下再试好不好嘛~</string>
+
+    <string name="chat_title">智能管家云糯</string>
+    <string name="chat_welcome">你好呀！我是云糯，今天花了什么钱，或者想查什么时候的账，都可以直接问我哦~</string>
+    <string name="chat_placeholder">例如：昨天晚餐花了多少钱...</string>
+    <string name="chat_loading_search">云糯正在翻看账本...</string>
+    <string name="chat_loading_details">正在回忆细节...</string>
+    <string name="chat_loading_summary">正在总结数据...</string>
+    <string name="chat_add_success">记好啦！已经帮你记录了这笔账单👇</string>
+    <string name="chat_add_fail_amount">金额好像没听清呢，能再说一遍吗？</string>
+
+    <string name="predict_title">云糯的小预测</string>
+    <string name="predict_message">哥哥，今天又在 %1$s 消费了吗？</string>
+    <string name="predict_amount">预计花费: RM %1$s</string>
+    <string name="btn_record_it">记一笔</string>
+    <string name="btn_no_need">不用啦</string>
 
     <string name="toast_copied">已复制: %1$s</string>
     <string name="toast_payment_success">充值成功！欢迎尊贵的 VIP！🎉</string>

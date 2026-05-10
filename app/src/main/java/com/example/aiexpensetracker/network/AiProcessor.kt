@@ -10,6 +10,7 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Locale
 import com.example.aiexpensetracker.BuildConfig
+import java.util.Date
 
 object AiProcessor {
     private const val TAG = "AiProcessor"
@@ -355,9 +356,216 @@ Choose the best fit:
         // 🛡️ 保底机制：如果没网，或者时间 API 挂了，才无奈退回使用手机本地时间
         return@withContext SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
     }
+
+    // 🟢 终极进化 1：全能 ChatBot 大脑（带时间感知和克隆模式）
+    suspend fun analyzeChatIntent(
+        userInput: String,
+        language: String,
+        errorMessage: String,
+        recentHistory: String, // 传入最近 5 条账单的文本，让它知道"昨天"是什么
+        currentDate: String,   // 传入系统今天的日期
+        customApiKey: String? = null,
+        customModelName: String? = null
+    ): ChatIntentResult? = withContext(Dispatchers.IO) {
+        try {
+            val langInstruction = when (language) {
+                "zh" -> "Reply in Simplified Chinese. Address the user as '哥哥'."
+                "ms" -> "Reply in Malay. Address the user as 'Abang'."
+                else -> "Reply in English. Address the user as 'Brother'."
+            }
+
+            // 🟢 注入当前时间（精确到小时），帮助 AI 判断午餐/晚餐
+            val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+
+            val prompt = """
+        You are "云糯" (Yunnuo), a highly intelligent, gentle, and clingy financial assistant for the user.
+        
+        Current Date: $currentDate, Current Time: $currentTime
+        
+        User's Recent Transactions (Memory):
+        $recentHistory
+        
+        Analyze the user's input and determine his intent.
+
+        STRICT LOGIC RULES:
+        1. MEAL RECOGNITION: 
+           - 05:00-10:30 is "Breakfast"
+           - 10:31-15:00 is "Lunch"
+           - 17:00-22:00 is "Dinner"
+           - If user says "I ate...", infer the meal based on Current Time unless specified.
+
+        2. CLONE MODE (CRITICAL): 
+           - If user says "same as yesterday" or "same as last [item]", you MUST:
+             a) Find the MOST RECENT matching record in Memory.
+             b) Copy its `merchant`, `category`, `account`, AND `note` EXACTLY.
+             c) Update only the `amount` (if provided).
+             d) Do NOT use placeholders like "same as yesterday" in the `merchant` field.
+
+        3. NOTE & ACCOUNT:
+           - Always extract the context (e.g., "Lunch", "Dinner", "Telur") into the `note` field.
+           - If the user doesn't mention a payment method, look at the Cloned record's `account`. If no clone, default to "Cash".
+
+        INTENT 1: "ADD" (Record a new expense/income)
+        
+        INTENT 2: "QUERY" (Search past transactions)
+           - RULE A (TYPO & CATEGORIES): First, put the exact raw word. Second, correct any typos. THIRD, if it's a general category (like food, eating, transport), you MUST INCLUDE the system's English category name (e.g., "Food", "Transport", "Shopping", "Medical", "Entertainment", "Utilities", "Other") in `search_keywords`. Then add multilingual synonyms.
+           - RULE B (TIME): If the user DOES NOT explicitly mention a time period, you MUST default to ALL TIME.
+           - RULE C (DETAIL SWITCH - CRITICAL): If the user asks for a general summary or total amount (e.g., "how much did I spend on food?"), set `needs_details` to `false`. If asking for specific items, investigating a merchant, or "what did I buy/eat", set `needs_details` to `true`.
+           - YOU MUST CALCULATE THE EXACT DATE RANGE based on the Current Date ($currentDate).
+           - Output `start_date` and `end_date` in "YYYY-MM-DD".
+           - If all time, use start_date: "2000-01-01", end_date: "2099-12-31".
+           
+        INTENT 3: "CHAT" (General conversation)
+        
+        $langInstruction
+        
+        Return ONLY a raw JSON object:
+        {
+          "intent": "ADD" | "QUERY" | "CHAT",
+          "message": "If CHAT, reply warmly. If QUERY, you can leave empty, App will handle it.",
+          "add_data": { 
+             "amount": 6.50, 
+             "merchant": "Mamak Stall", 
+             "category": "Food", 
+             "type": "EXPENSE",
+             "note": "Lunch",
+             "account": "Cash"
+          },
+          "query_data": { 
+             "search_keywords": ["oriental kopi", "东方咖啡", "oriental coffee"],
+             "start_date": "1970-01-01",
+             "end_date": "2099-12-31",
+             "needs_details": false
+          }
+        }
+        """.trimIndent()
+
+            val inputContent = content { text(prompt + "\nUser Input: \"$userInput\"") }
+            val model = getModel(customApiKey, customModelName ?: "gemini-2.5-flash")
+            val response = model.generateContent(inputContent)
+            val rawText = response.text?.replace("```json", "")?.replace("```", "")?.trim()
+
+            if (rawText != null) {
+                val json = JSONObject(rawText)
+                val intent = json.optString("intent", "CHAT")
+                val message = json.optString("message", "")
+
+                var addData: TransactionResult? = null
+                if (json.has("add_data") && !json.isNull("add_data")) {
+                    val addObj = json.getJSONObject("add_data")
+                    addData = TransactionResult(
+                        valid = true,
+                        amount = addObj.optDouble("amount", 0.0),
+                        merchant = addObj.optString("merchant", "Unknown"),
+                        category = addObj.optString("category", "Other"),
+                        type = addObj.optString("type", "EXPENSE"),
+                        note = addObj.optString("note", ""),
+                        account = addObj.optString("account", "Cash")
+                    )
+                }
+
+                var queryData: QueryData? = null
+                if (json.has("query_data") && !json.isNull("query_data")) {
+                    val queryObj = json.getJSONObject("query_data")
+                    val keywordsArray = queryObj.optJSONArray("search_keywords")
+                    val keywordsList = mutableListOf<String>()
+                    if (keywordsArray != null) {
+                        for (i in 0 until keywordsArray.length()) {
+                            keywordsList.add(keywordsArray.getString(i))
+                        }
+                    }
+                    // 🟢 这里包含了读取 needs_details 的逻辑！
+                    queryData = QueryData(
+                        searchKeywords = keywordsList,
+                        startDate = queryObj.optString("start_date", "1970-01-01"),
+                        endDate = queryObj.optString("end_date", "2099-12-31"),
+                        needsDetails = queryObj.optBoolean("needs_details", false)
+                    )
+                }
+                return@withContext ChatIntentResult(intent, message, addData, queryData)
+            }
+            null
+        } catch (e: Exception) {
+            Log.e("AiProcessor", "Chat Intent Analysis Failed: ${e.message}")
+            ChatIntentResult("CHAT", errorMessage)
+        }
+    }
+
+    // 🟢 终极进化 2：基于数据库真实数据生成自然回答
+    // 🟢 接收 showCards 参数，告诉 AI 底部到底有没有卡片
+    suspend fun generateQueryResponse(
+        userInput: String,
+        dbData: String,
+        language: String,
+        showCards: Boolean, // 🟢 新增参数
+        customApiKey: String? = null,
+        customModelName: String? = null
+    ): String = withContext(Dispatchers.IO) {
+        try {
+            val langInstruction = when (language) {
+                "zh" -> "Reply in Simplified Chinese. Address the user affectionately as '哥哥'."
+                "ms" -> "Reply in Malay. Address the user affectionately as 'Abang'."
+                else -> "Reply in English. Address the user affectionately as 'Brother'."
+            }
+
+            // 🟢 动态生成卡片提示语
+            val cardNotice = if (showCards) {
+                "5. CARD NOTICE: ALWAYS append this sentence at the very end: '云糯把相关的账单卡片放在下面啦，哥哥可以直接点击进去看详情哦！👇'"
+            } else {
+                "5. CARD NOTICE: DO NOT mention anything about putting cards below, because no cards are being displayed. Just answer the question."
+            }
+
+            val prompt = """
+            You are "云糯" (Yunnuo), a gentle and clingy younger sister figure acting as the user's financial assistant.
+            The user asked: "$userInput"
+            
+            Here is the raw data retrieved from the local database:
+            ---
+            $dbData
+            ---
+            
+            Task & Strict Rules:
+            1. DO NOT DO ANY MATH: You are strictly forbidden from summing up the individual items in the sample list. The list is incomplete. If you sum them, you will give the wrong answer.
+            2. USE CRITICAL STATS: You MUST read the exact "Actual Total Spent" and "Total Transactions" from the CRITICAL STATS section and report these exact numbers to the user.
+            3. DETAILED SEARCH: If the user asks "what did I buy" or "what did I eat", look at the "物品明细/备注" section. Pick 2 or 3 examples to make the conversation natural, and include their exact prices.
+            4. TONE: Be sweet, helpful, and extremely clingy.
+            $cardNotice
+            
+            $langInstruction
+            """.trimIndent()
+
+            val model = getModel(customApiKey, customModelName ?: "gemini-2.5-flash")
+            val response = model.generateContent(prompt)
+            return@withContext response.text?.trim() ?: "哥哥，云糯查完资料突然有点头晕..."
+        } catch (e: Exception) {
+            return@withContext "网络信号不好，云糯无法解读账单呢..."
+        }
+    }
 }
 
 // 数据类定义保持原样...
-data class TransactionResult(val valid: Boolean, val amount: Double?, val merchant: String?, val category: String?, val type: String?)
+data class TransactionResult(
+    val valid: Boolean,
+    val amount: Double?,
+    val merchant: String?,
+    val category: String?,
+    val type: String?,
+    val note: String? = null,    // 🟢 确保有这个字段
+    val account: String? = null  // 🟢 确保有这个字段
+)
 data class ReceiptAnalysis(val merchant: String, val items: List<ReceiptItem>, val date: Long, val detectedRates: List<Double>, val hasRounding: Boolean, val paymentMethod: String, val totalAmount: Double)
 data class ReceiptItem(val name: String, val price: Double, val qty: Int, val category: String)
+
+data class ChatIntentResult(
+    val intent: String, // "ADD", "QUERY", "CHAT"
+    val replyMessage: String,
+    val addData: TransactionResult? = null,
+    val queryData: QueryData? = null
+)
+
+data class QueryData(
+    val searchKeywords: List<String>,
+    val startDate: String,
+    val endDate: String,
+    val needsDetails: Boolean // 🟢 新增：AI 用来控制是否需要甩出小卡片
+)
