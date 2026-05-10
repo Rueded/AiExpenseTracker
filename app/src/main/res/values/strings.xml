@@ -235,6 +235,52 @@
     <string name="btn_record_it">Record It</string>
     <string name="btn_no_need">Dismiss</string>
 
+
+    <!-- Notification channel for transaction alerts -->
+    <string name="notif_channel_transaction_name">Transaction Alerts</string>
+
+    <!-- Saved & verified by AI -->
+    <!-- %1$s = amount string e.g. "9.90" -->
+    <string name="notif_saved_verified_title">✅ Saved: RM %1$s</string>
+
+    <!-- Saved but needs review (fallback) -->
+    <string name="notif_saved_unverified_title">📝 Saved: RM %1$s</string>
+
+    <!-- Notification body text -->
+    <!-- %1$s = merchant, %2$s = note -->
+    <string name="notif_body_auto_matched">%1$s · %2$s (Tap to edit)</string>
+    <string name="notif_body_needs_input">%1$s · Tap to add details</string>
+
+    <!-- ========================================== -->
+    <!-- AI Quota Exceeded Notification             -->
+    <!-- ========================================== -->
+    <string name="notif_quota_title">⚠️ Daily AI Limit Reached</string>
+    <string name="notif_quota_desc">A transaction was skipped. Tap to upgrade to VIP or add your own API key.</string>
+
+    <!-- ========================================== -->
+    <!-- Pending Review (Regex Fallback)            -->
+    <!-- ========================================== -->
+    <string name="merchant_pending_review">Pending Review</string>
+    <string name="notif_tap_to_confirm">Tap to confirm details</string>
+    <!-- %1$s = amount string e.g. "9.90" -->
+    <string name="toast_pending_review">⚠️ Needs review: RM %1$s</string>
+    <!-- %1$s = reason e.g. "AI Failed" -->
+    <string name="note_pending_review">⚠️ Pending review (%1$s — local fallback)</string>
+
+    <!-- ========================================== -->
+    <!-- Auto-detected VIP Income                   -->
+    <!-- ========================================== -->
+    <string name="category_business_income">Business Income</string>
+    <string name="note_auto_vip_income">Auto-detected VIP subscription payment</string>
+
+    <!-- ========================================== -->
+    <!-- Transfer Auto-merge                        -->
+    <!-- ========================================== -->
+    <string name="note_auto_merged_transfer">Auto-merged Transfer</string>
+    <string name="note_auto_merged">Auto-merged</string>
+    <!-- %1$s = amount string e.g. "9.90" -->
+    <string name="notif_transfer_title">Transfer RM %1$s</string>
+
     <string name="toast_copied">Copied: %1$s</string>
     <string name="toast_payment_success">Payment Success! 🎉</string>
     <string name="toast_lifetime_activated">Lifetime VIP Activated! 🎉</string>

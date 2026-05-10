@@ -27,9 +27,11 @@ import com.example.aiexpensetracker.database.AppDatabase
 import com.example.aiexpensetracker.database.ExpenseEntity
 import com.example.aiexpensetracker.database.IgnoredEntity
 import com.example.aiexpensetracker.network.AiProcessor
+import com.example.aiexpensetracker.network.TransactionResult
 import com.example.aiexpensetracker.utils.VipUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
@@ -44,85 +46,70 @@ class NotificationListener : NotificationListenerService() {
 
         private const val MATCH_WINDOW_MS = 2 * 60 * 1000L
         private const val DEDUP_WINDOW_MS = 10_000L
-        private const val NOTIFICATION_ID = 1001 // 🟢 新增：固定 ID 避免冲突
+        private const val NOTIFICATION_ID = 1001
 
         private val dbMutex = kotlinx.coroutines.sync.Mutex()
 
         private val TARGET_PACKAGES = setOf(
-            // ==========================================
-            // 1. 你原有的包名 (原封不动保留)
-            // ==========================================
-            "my.com.tngdigital.ewallet",    // TNG eWallet
-            "com.grabtaxi.passenger",       // Grab
-            "com.shopee.my",                // Shopee
-            "com.shopeepay.my",             // ShopeePay
-            "my.com.myboost",               // Boost
-            "com.airasia.bigpay",           // BigPay (旧版)
-            "com.maybank2u.life",           // MAE
-            "com.cimb.octo",                // CIMB Octo (可能无效)
-            "com.cimb.clicks.android",      // CIMB Clicks (可能无效)
-            "my.com.rhbgroup.mobilebanking",// RHB Old
-            "my.com.rhbgroup.rhbmobilebanking",// RHB Old
-            "com.rhbgroup.rhbengineering",  // RHB New
-            "com.rhbgroup.rhbmobilebanking",// RHB New (准确的最新版)
-            "com.hongleong.pb",             // HLB
-            "my.com.mybsn",                 // BSN
-            "com.mybsn.mobile",             // BSN
-            "com.bsn.mybsn",                // BSN (准确)
-            "net.mybsn.secure",             // BSN
-            "com.ambank.ambank",            // AmBank
-            "my.com.publicbank.pbe",        // Public Bank
-            "com.alliancebank.allianceonline", // Alliance
-            "com.bankislam.go",             // Bank Islam
-            "com.bankrakyat.irakyat",       // Bank Rakyat
-            "com.sc.breeze.my",             // Standard Chartered
-            "my.com.hsbc.hsbcmobilebanking",// HSBC
-            "com.ocbc.mobile",              // OCBC
-            "com.uob.mighty.my",            // UOB (旧版 Mighty)
-
-            // ==========================================
-            // 2. 🟢 新增：传统银行 (修正后的最新准确包名)
-            // ==========================================
-            "com.maybank2u.m2u",            // Maybank2u (旧版黄App，很多人还在用)
-            "com.cimb.cimbocto",            // CIMB OCTO MY (目前真正的包名)
-            "com.cimbmalaysia",             // CIMB Clicks Malaysia (目前真正的包名)
-            "my.com.rhb.mobilebanking",     // RHB Mobile Banking (常见旧版)
-            "my.com.hongleongconnect.mobile",// HLB Connect (目前真正的包名)
-            "com.publicbank.pbengage",      // PB engage MY (目前真正的包名)
-            "com.ambank.ambankonline",      // AmOnline (目前真正的包名)
-            "com.ambank.amonline",          // AmOnline (备用)
-            "com.alliance.online.mobile",   // Alliance online mobile (目前真正的包名)
-            "com.bankislam.bimbmobile",     // Bank Islam GO (目前真正的包名)
-            "my.com.bankrakyat.irakyat",    // iRakyat Mobile Banking
-            "com.affinbank.affinalways",    // AffinAlways (Affin Bank 新版)
-            "com.affinonline.rib",          // Affin Bank (旧版)
-            "com.uob.tmrw.my",              // UOB TMRW Malaysia (取代了 Mighty)
-            "com.ocbc.my",                  // OCBC Malaysia
-            "com.ocbc.mobilebanking.my",    // OCBC Malaysia (备用)
-            "hk.com.hsbc.hsbcmalaysia",     // HSBC Malaysia (本地版)
-            "com.htsu.hsbcpersonalbanking", // HSBC (全球通用版)
-            "com.standardchartered.breeze.my", // SC Mobile (备用)
-
-            // ==========================================
-            // 3. 🟣 新增：最新数字银行 (Digital Banks - 记账必备)
-            // ==========================================
-            "my.gxbank.my",                 // GXBank (目前最火的数字银行)
-            "my.com.aeonbank.app",          // AEON Bank (伊斯兰数字银行)
-            "com.bankislam.beu",            // Be U by Bank Islam
-            "com.alrajhi.rize",             // Rize (Al Rajhi Bank 数字银行)
-
-            // ==========================================
-            // 4. 🟡 新增：电子钱包与其他生活支付 (E-Wallets)
-            // ==========================================
-            "com.tpa.airasiacard",          // BigPay (目前真正的包名，极其重要)
-            "com.setel.mobile",             // Setel (Petronas 打油必备)
-            "com.aeoncredit.wallet.my",     // AEON Wallet Malaysia
-            "com.lazada.android",           // Lazada (Lazada Wallet 扣款)
-            "com.google.android.apps.walletnfcrel", // Google Wallet (NFC 刷卡通知)
-            "com.samsung.android.spay",     // Samsung Pay
-            "com.paypal.android.p2pmobile", // PayPal
-            "com.transferwise.android",     // Wise (跨国汇款/支付)
-            "com.eg.android.AlipayGphone"   // Alipay (支付宝，如果你有时用的话)
+            "my.com.tngdigital.ewallet",
+            "com.grabtaxi.passenger",
+            "com.shopee.my",
+            "com.shopeepay.my",
+            "my.com.myboost",
+            "com.airasia.bigpay",
+            "com.maybank2u.life",
+            "com.cimb.octo",
+            "com.cimb.clicks.android",
+            "my.com.rhbgroup.mobilebanking",
+            "my.com.rhbgroup.rhbmobilebanking",
+            "com.rhbgroup.rhbengineering",
+            "com.rhbgroup.rhbmobilebanking",
+            "com.hongleong.pb",
+            "my.com.mybsn",
+            "com.mybsn.mobile",
+            "com.bsn.mybsn",
+            "net.mybsn.secure",
+            "com.ambank.ambank",
+            "my.com.publicbank.pbe",
+            "com.alliancebank.allianceonline",
+            "com.bankislam.go",
+            "com.bankrakyat.irakyat",
+            "com.sc.breeze.my",
+            "my.com.hsbc.hsbcmobilebanking",
+            "com.ocbc.mobile",
+            "com.uob.mighty.my",
+            "com.maybank2u.m2u",
+            "com.cimb.cimbocto",
+            "com.cimbmalaysia",
+            "my.com.rhb.mobilebanking",
+            "my.com.hongleongconnect.mobile",
+            "com.publicbank.pbengage",
+            "com.ambank.ambankonline",
+            "com.ambank.amonline",
+            "com.alliance.online.mobile",
+            "com.bankislam.bimbmobile",
+            "my.com.bankrakyat.irakyat",
+            "com.affinbank.affinalways",
+            "com.affinonline.rib",
+            "com.uob.tmrw.my",
+            "com.ocbc.my",
+            "com.ocbc.mobilebanking.my",
+            "hk.com.hsbc.hsbcmalaysia",
+            "com.htsu.hsbcpersonalbanking",
+            "com.standardchartered.breeze.my",
+            "my.gxbank.my",
+            "my.com.aeonbank.app",
+            "com.bankislam.beu",
+            "com.alrajhi.rize",
+            "com.tpa.airasiacard",
+            "com.setel.mobile",
+            "com.aeoncredit.wallet.my",
+            "com.lazada.android",
+            "com.google.android.apps.walletnfcrel",
+            "com.samsung.android.spay",
+            "com.paypal.android.p2pmobile",
+            "com.transferwise.android",
+            "com.eg.android.AlipayGphone"
         )
     }
 
@@ -182,7 +169,6 @@ class NotificationListener : NotificationListenerService() {
 
     private fun startForegroundService() { updateNotification(isPaused = false) }
 
-    // 🟢 修改 4：核心通知逻辑 (划不掉 + Android 14 兼容)
     private fun updateNotification(isPaused: Boolean) {
         isServiceRunning = true
         val channelId = "expense_service_v5"
@@ -204,16 +190,13 @@ class NotificationListener : NotificationListenerService() {
             .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_popup_sync)
             .setContentIntent(pendingIntent)
-            // 🟢 关键：设置为 ONGOING 用户划不掉
             .setOngoing(true)
-            // 🟢 关键：Android 14 要求前台服务通知立即显示，不等待系统调度
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .apply { if (!isPaused) addAction(android.R.drawable.ic_media_pause, actionText, stopPendingIntent) }
             .build()
 
         try {
-            // 🟢 关键：Android 14 (API 34) 必须显式声明前台服务类型
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -260,7 +243,7 @@ class NotificationListener : NotificationListenerService() {
         val currentTime = System.currentTimeMillis()
 
         // ==========================================
-        // 🚀 VIP 自动发卡雷达（终极版）
+        // VIP 自动发卡雷达
         // ==========================================
         val amountRegex = Regex("RM\\s*(\\d+(\\.\\d{1,2})?)")
         val amountMatch = amountRegex.find(fullContent)
@@ -269,21 +252,10 @@ class NotificationListener : NotificationListenerService() {
         val vipPrices = setOf(9.90, 89.90, 199.00)
         val isVipPrice = vipPrices.any { Math.abs(earnedAmount - it) < 0.001 }
 
-        val isIncoming = fullContent.contains("RECEIVED") ||
-                fullContent.contains("TOYOU") ||
-                fullContent.contains("CREDITED") ||
-                fullContent.contains("FROM") ||
-                fullContent.contains("收款") ||  // 🚀 中文收入
-                fullContent.contains("入账") ||
-                fullContent.contains("收到")
-
-        val isOutgoing = fullContent.contains("YOU'VETRANSFERRED") ||
-                fullContent.contains("PAID") ||
-                fullContent.contains("SPENT") ||
-                fullContent.contains("PAYMENTTO") ||
-                fullContent.contains("付款") ||  // 🚀 中文支出
-                fullContent.contains("转出") ||
-                fullContent.contains("支付")
+        val isIncoming = fullContent.containsAny("RECEIVED", "TOYOU", "CREDITED", "FROM",
+            "收款", "入账", "收到")
+        val isOutgoing = fullContent.containsAny("YOU'VETRANSFERRED", "PAID", "SPENT",
+            "PAYMENTTO", "付款", "转出", "支付")
 
         if (isVipPrice && isIncoming && !isOutgoing) {
             Log.d("AutoDelivery", "🎯 嗅探到真实的 VIP 商业收款: $fullContent")
@@ -310,17 +282,15 @@ class NotificationListener : NotificationListenerService() {
                         amount = earnedAmount,
                         type = "INCOME",
                         merchant = "VIP Subscription",
-                        category = "Business / 商业收入",
+                        category = getString(R.string.category_business_income),
                         timestamp = currentTime,
                         originalText = "Auto-detected VIP Payment: $fullContent",
-                        note = "App 自动发货收款",
+                        note = getString(R.string.note_auto_vip_income),
                         accountName = detectedAccount,
                         targetAccountName = null
                     )
 
-                    dbMutex.withLock {
-                        expenseDao.insert(vipIncome)
-                    }
+                    dbMutex.withLock { expenseDao.insert(vipIncome) }
                     Log.d("AutoDelivery", "💰 商业收入已写入！金额: RM$earnedAmount")
 
                 } catch (e: Exception) {
@@ -333,14 +303,15 @@ class NotificationListener : NotificationListenerService() {
 
         if (isSensitive(text) || isSensitive(title)) return
 
-        // ✅ 本地保安：关键词足够丰富，通过了就直接送 AI 提取，不再让 AI 当门神
-        if (!isValidTransaction(title, text)) {
-            Log.d(TAG, "🗑️ Ignored spam: $title")
-            saveIgnoredLog(packageName, title, text, "Keyword Filter (Spam/Ad)")
+        // ✅ 第一层：评分制过滤器
+        val filterScore = calcFilterScore(title, text)
+        if (filterScore < 3) {
+            Log.d(TAG, "🗑️ Score=$filterScore, ignored: $title")
+            saveIgnoredLog(packageName, title, text, "Score Filter (score=$filterScore)")
             return
         }
 
-        Log.e(TAG, "📨 Captured: $packageName")
+        Log.e(TAG, "📨 Captured (score=$filterScore): $packageName")
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -349,16 +320,23 @@ class NotificationListener : NotificationListenerService() {
 
                 if (!aiConfig.isAllowed) {
                     Log.w(TAG, "🚫 AI Quota exceeded for today.")
-                    saveIgnoredLog(packageName, title, text, "Daily AI Limit Reached (Need VIP)")
-                    sendQuotaExceededNotification()
+                    // 配额耗尽时也尝试本地兜底，不直接丢弃
+                    val fallback = localRegexFallback(title, text, packageName)
+                    if (fallback != null) {
+                        saveFallbackRecord(fallback, text, packageName, currentTime, "AI Quota Exceeded")
+                    } else {
+                        saveIgnoredLog(packageName, title, text, "Daily AI Limit Reached (Need VIP)")
+                        sendQuotaExceededNotification()
+                    }
                     return@launch
                 }
 
-                Log.e(TAG, "🤖 Asking Gemini AI...")
-                val result = AiProcessor.analyze(fullText, aiConfig.customKey, aiConfig.customModel)
+                // ✅ 第二层：AI 提取（带重试）
+                Log.e(TAG, "🤖 Asking AI (with retry)...")
+                val result = retryAiExtraction(fullText, aiConfig, maxRetries = 2)
 
-                // ✅ 剥夺 AI 拒签权：不看 result.valid，只要 amount > 0 就入库
                 if (result != null && (result.amount ?: 0.0) > 0.0) {
+                    // AI 成功，正常入库
                     dbMutex.withLock {
                         val db = AppDatabase.getDatabase(applicationContext)
                         val learningDao = db.merchantLearningDao()
@@ -406,7 +384,7 @@ class NotificationListener : NotificationListenerService() {
                                 expenseDao.delete(match)
                                 currentType = "TRANSFER"
                                 currentTarget = match.accountName
-                                if (currentNote.isBlank()) currentNote = "Auto-merged Transfer"
+                                if (currentNote.isBlank()) currentNote = getString(R.string.note_auto_merged_transfer)
                                 isMerged = false
                             }
                         }
@@ -414,7 +392,7 @@ class NotificationListener : NotificationListenerService() {
                         if (isMerged) {
                             val msg = getString(R.string.notif_saved_title, "Transfer RM ${String.format("%.2f", amount)}")
                             showToast(msg)
-                            sendInputRequiredNotification(transferId, amount, "Transfer", "Auto-merged")
+                            sendInputRequiredNotification(transferId, amount, "Transfer", getString(R.string.note_auto_merged))
                         } else {
                             val newRecord = ExpenseEntity(
                                 amount = amount,
@@ -433,17 +411,185 @@ class NotificationListener : NotificationListenerService() {
                             showToast(savedMsg)
                             sendInputRequiredNotification(id.toInt(), newRecord.amount, newRecord.merchant, currentNote)
                         }
-                    } // 🔒 锁结束
+                    }
                 } else {
-                    Log.d(TAG, "🤖 AI returned null or zero amount")
-                    saveIgnoredLog(packageName, title, text, "AI Extraction Failed (null/zero amount)")
+                    // ✅ 第三层：本地 Regex 兜底
+                    Log.w(TAG, "🤖 AI failed after retries, trying local fallback...")
+                    val fallback = localRegexFallback(title, text, packageName)
+                    if (fallback != null) {
+                        saveFallbackRecord(fallback, text, packageName, currentTime, "AI Failed")
+                    } else {
+                        Log.d(TAG, "🗑️ Both AI and fallback failed")
+                        saveIgnoredLog(packageName, title, text, "AI + Regex Fallback both failed")
+                    }
                 }
+
             } catch (e: Exception) {
                 Log.e(TAG, "💥 Error: ${e.message}")
                 e.printStackTrace()
             }
         }
     }
+
+    // ==========================================
+    // 第二层：AI 重试机制
+    // ==========================================
+    private suspend fun retryAiExtraction(
+        fullText: String,
+        aiConfig: AiConfig,
+        maxRetries: Int = 2
+    ): TransactionResult? {
+        repeat(maxRetries) { attempt ->
+            try {
+                val result = AiProcessor.analyze(fullText, aiConfig.customKey, aiConfig.customModel)
+                if (result != null && (result.amount ?: 0.0) > 0.0) {
+                    Log.d(TAG, "✅ AI success on attempt ${attempt + 1}")
+                    return result
+                }
+                Log.w(TAG, "⚠️ AI attempt ${attempt + 1} returned null/zero, retrying...")
+                if (attempt < maxRetries - 1) delay(1500L)
+            } catch (e: Exception) {
+                Log.e(TAG, "💥 AI attempt ${attempt + 1} threw: ${e.message}")
+                if (attempt < maxRetries - 1) delay(1500L)
+            }
+        }
+        return null
+    }
+
+    // ==========================================
+    // 第三层：本地 Regex 兜底提取
+    // ==========================================
+    private fun localRegexFallback(title: String, text: String, pkg: String): TransactionResult? {
+        val combined = "$title $text"
+
+        // 提取金额（支持逗号千位分隔符）
+        val amountRegex = Regex("""RM\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)""", RegexOption.IGNORE_CASE)
+        val amountStr = amountRegex.find(combined)?.groupValues?.get(1)
+            ?.replace(",", "") ?: return null
+        val amount = amountStr.toDoubleOrNull() ?: return null
+        if (amount <= 0) return null
+
+        val upper = combined.uppercase()
+        val type = when {
+            upper.containsAny("RECEIVED", "CREDITED", "INWARD", "TO YOU",
+                "FUNDS RECEIVED", "INTO YOUR ACCOUNT", "收款", "入账", "收到") -> "INCOME"
+            else -> "EXPENSE"
+        }
+
+        Log.d(TAG, "🛠️ Regex fallback extracted: RM$amount ($type)")
+        return TransactionResult(
+            valid = true,
+            amount = amount,
+            merchant = "Unknown",
+            category = "Uncategorized",
+            type = type
+        )
+    }
+
+    // ==========================================
+    // 兜底记录写入（标注待审核，存入账单列表）
+    // ==========================================
+    private suspend fun saveFallbackRecord(
+        fallback: TransactionResult,
+        originalText: String,
+        packageName: String,
+        currentTime: Long,
+        reason: String
+    ) {
+        dbMutex.withLock {
+            try {
+                val db = AppDatabase.getDatabase(applicationContext)
+                val expenseDao = db.expenseDao()
+                val accountDao = db.accountDao()
+                val detectedAccount = detectAccountName(packageName)
+
+                if (accountDao.exists(detectedAccount) == 0) {
+                    accountDao.insert(AccountEntity(name = detectedAccount))
+                }
+
+                val record = ExpenseEntity(
+                    amount = fallback.amount ?: 0.0,
+                    type = fallback.type ?: "EXPENSE",
+                    merchant = "Unknown",
+                    category = "Uncategorized",
+                    timestamp = currentTime,
+                    originalText = originalText,
+                    note = getString(R.string.note_pending_review, reason),
+                    accountName = detectedAccount,
+                    targetAccountName = null
+                )
+                val id = expenseDao.insert(record)
+                Log.d(TAG, "🛠️ Fallback record saved, id=$id, amount=${fallback.amount}")
+
+                showToast(getString(R.string.toast_pending_review, String.format("%.2f", fallback.amount)))
+                sendInputRequiredNotification(
+                    id.toInt(),
+                    fallback.amount ?: 0.0,
+                    getString(R.string.merchant_pending_review),
+                    getString(R.string.notif_tap_to_confirm)
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "💥 Fallback save failed: ${e.message}")
+            }
+        }
+    }
+
+    // ==========================================
+    // 第一层：评分制过滤器（替换原 isValidTransaction）
+    // ==========================================
+    private fun calcFilterScore(title: String, text: String): Int {
+        val combined = "$title $text".lowercase()
+        var score = 0
+
+        // 没有货币符号直接拦截
+        val hasCurrency = combined.containsAny("rm", "myr", "令吉", "马币")
+        if (!hasCurrency) return -99
+
+        // 加分项
+        val highPositive = listOf(
+            "paid", "transferred", "you've transferred", "has been debited",
+            "deducted", "purchase", "payment to", "duitnow", "fpx", "jompay", "paywave", "ibg"
+        )
+        val medPositive = listOf(
+            "received", "credited", "to your account", "funds received",
+            "top up", "topup", "reload", "收款", "入账", "转账", "付款", "充值"
+        )
+        val lowPositive = listOf(
+            "successful", "approved", "berjaya", "成功", "telah berjaya"
+        )
+
+        if (highPositive.any { combined.contains(it) }) score += 3
+        if (medPositive.any { combined.contains(it) }) score += 3
+        if (lowPositive.any { combined.contains(it) }) score += 2
+
+        // 扣分项
+        val criticalNegative = listOf("tac", "otp", "verification code", "验证码", "驗證碼")
+        val highNegative = listOf(
+            "unsuccessful", "failed", "declined", "rejected", "失败", "失敗", "拒绝", "拒絕"
+        )
+        val medNegative = listOf(
+            "promo", "voucher", "cashback offer", "lucky draw", "winner",
+            "抽奖", "抽獎", "优惠券", "優惠券", "campaign"
+        )
+        val lowNegative = listOf(
+            "maintenance", "downtime", "system update", "monthly statement",
+            "e-statement", "维护", "維護", "账单提醒", "賬單提醒"
+        )
+
+        if (criticalNegative.any { combined.contains(it) }) score -= 10  // 一票否决
+        if (highNegative.any { combined.contains(it) }) score -= 8
+        if (medNegative.any { combined.contains(it) }) score -= 5
+        if (lowNegative.any { combined.contains(it) }) score -= 4
+
+        Log.d(TAG, "🎯 FilterScore=$score | $combined")
+        return score
+    }
+
+    // ==========================================
+    // 工具方法
+    // ==========================================
+    private fun String.containsAny(vararg keywords: String) =
+        keywords.any { this.contains(it, ignoreCase = true) }
 
     private fun saveIgnoredLog(pkg: String, title: String, text: String, reason: String) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -476,59 +622,6 @@ class NotificationListener : NotificationListenerService() {
         }
     }
 
-    // ✅ 本地保安（关键词超丰富版）：正则当盾，AI 当矛
-    private fun isValidTransaction(title: String, text: String): Boolean {
-        val combined = "$title $text".lowercase()
-
-        // 🚀 货币不仅要认 RM/MYR，还要防一手中文的“令吉”或“马币”
-        val hasCurrency = combined.contains("rm") || combined.contains("myr") ||
-                combined.contains("令吉") || combined.contains("马币")
-        if (!hasCurrency) return false
-
-        // 🚀 终极加强版：英语 + 马来语 + 中文（简/繁）
-        val validKeywords = listOf(
-            // English
-            "paid", "spent", "transfer", "transferred", "has transferred",
-            "you've transferred", "sent", "received", "funds received",
-            "you've received", "to your account", "into your account",
-            "credit", "credited", "debit", "debited", "deducted",
-            "payment", "purchase", "transaction", "inward", "outward",
-            "top up", "topup", "reload", "reloaded",
-            "duitnow", "fpx", "jompay", "paywave", "interbank", "ibg", "rentas", "swift",
-            "succes", "successful", "approved", "confirmed",
-            "has been debited", "has been credited", "account ending", "your account", "bank account",
-            // Bahasa Melayu
-            "pembayaran", "pindahan", "diterima", "dibayar", "ditolak", "bayaran",
-            "masuk", "keluar", "telah berjaya", "berjaya",
-            // 中文 (简体 & 繁体)
-            "转账", "轉賬", "支付", "收款", "汇款", "匯款", "扣款", "充值", "退款",
-            "支出", "收入", "成功", "入账", "入賬", "付款", "已扣除", "转出", "轉出"
-        )
-        val hasValidKeyword = validKeywords.any { combined.contains(it) }
-
-        val invalidKeywords = listOf(
-            // English
-            "promo", "cashback", "voucher", "discount", "winner", "win",
-            "campaign", "apply now", "deal", "login", "tac", "otp",
-            "unsuccessful", "failed", "declined", "rejected",
-            "password", "pin", "security", "reminder", // 移除了 alert
-            "statement", "e-statement", "monthly statement",
-            "maintenance", "system update", "downtime",
-            "congratulations", "lucky draw", "due date", // 移除了 loan, balance, outstanding
-            // Bahasa Melayu
-            "tahniah", // 移除了 baki (balance的马来文)
-            // 中文 (简体 & 繁体)
-            "验证码", "驗證碼", "登录", "登入", "密码", "密碼", "失败", "失敗",
-            "优惠", "優惠", "折扣", "抽奖", "抽獎", "赢取", "贏取",
-            "推广", "推廣", "提醒", "账单", "賬單", "拒绝", "拒絶",
-            "安全", "警告", "维护", "維護", "更新", "逾期" // 移除了 余额, 餘額
-        )
-
-        val hasInvalidKeyword = invalidKeywords.any { combined.contains(it) }
-
-        return hasValidKeyword && !hasInvalidKeyword
-    }
-
     private fun getTimeSlot(timestamp: Long): String {
         val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
@@ -559,7 +652,7 @@ class NotificationListener : NotificationListenerService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val isAutoMatched = autoNote.isNotBlank() && merchant != "Unknown"
+        val isAutoMatched = autoNote.isNotBlank() && merchant != "Unknown" && merchant != "待审核"
         val titleText = if (isAutoMatched) "✅ Saved: RM ${String.format("%.2f", amount)}"
         else "📝 Saved: RM ${String.format("%.2f", amount)}"
         val contentText = if (isAutoMatched) "$merchant • $autoNote (Tap to edit)"
@@ -632,8 +725,8 @@ class NotificationListener : NotificationListenerService() {
 
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("⚠️ AI Limit Reached / AI 额度已用完")
-            .setContentText("A transaction was ignored. Tap to upgrade VIP or add your API Key.")
+            .setContentTitle(getString(R.string.notif_quota_title))
+            .setContentText(getString(R.string.notif_quota_desc))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
@@ -641,5 +734,4 @@ class NotificationListener : NotificationListenerService() {
 
         manager.notify(999, notification)
     }
-
 }

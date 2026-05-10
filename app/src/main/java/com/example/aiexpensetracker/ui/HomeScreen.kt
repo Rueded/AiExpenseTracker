@@ -3014,7 +3014,7 @@ fun AboutScreen() {
 
             // 🟢 2. 修改：加上了连击触发器！
             Text(
-                text = "v5.1.0",
+                text = "v5.2.0",
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray,
                 modifier = Modifier.clickable {

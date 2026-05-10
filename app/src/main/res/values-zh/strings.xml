@@ -235,6 +235,52 @@
     <string name="btn_record_it">记一笔</string>
     <string name="btn_no_need">不用啦</string>
 
+
+    <!-- 交易提醒通知渠道 -->
+    <string name="notif_channel_transaction_name">交易提醒</string>
+
+    <!-- AI 识别成功 -->
+    <!-- %1$s = 金额字符串，例如 "9.90" -->
+    <string name="notif_saved_verified_title">✅ 已记录：RM %1$s</string>
+
+    <!-- 待审核（本地兜底） -->
+    <string name="notif_saved_unverified_title">📝 已记录：RM %1$s</string>
+
+    <!-- 通知正文 -->
+    <!-- %1$s = 商家名，%2$s = 备注 -->
+    <string name="notif_body_auto_matched">%1$s · %2$s（点击编辑）</string>
+    <string name="notif_body_needs_input">%1$s · 点击补充详情</string>
+
+    <!-- ========================================== -->
+    <!-- AI 配额超限通知                            -->
+    <!-- ========================================== -->
+    <string name="notif_quota_title">⚠️ 今日 AI 次数已用完</string>
+    <string name="notif_quota_desc">有一笔交易未能识别，点击升级 VIP 或填入自己的 API Key。</string>
+
+    <!-- ========================================== -->
+    <!-- 待审核（Regex 兜底）                       -->
+    <!-- ========================================== -->
+    <string name="merchant_pending_review">待审核</string>
+    <string name="notif_tap_to_confirm">点击确认账单详情</string>
+    <!-- %1$s = 金额字符串，例如 "9.90" -->
+    <string name="toast_pending_review">⚠️ 待审核账单：RM %1$s</string>
+    <!-- %1$s = 原因，例如 "AI Failed" -->
+    <string name="note_pending_review">⚠️ 待审核（%1$s，本地备用提取）</string>
+
+    <!-- ========================================== -->
+    <!-- VIP 自动收款识别                           -->
+    <!-- ========================================== -->
+    <string name="category_business_income">商业收入</string>
+    <string name="note_auto_vip_income">App 自动发货收款</string>
+
+    <!-- ========================================== -->
+    <!-- 转账自动合并                               -->
+    <!-- ========================================== -->
+    <string name="note_auto_merged_transfer">自动合并转账</string>
+    <string name="note_auto_merged">自动合并</string>
+    <!-- %1$s = 金额字符串，例如 "9.90" -->
+    <string name="notif_transfer_title">转账 RM %1$s</string>
+
     <string name="toast_copied">已复制: %1$s</string>
     <string name="toast_payment_success">充值成功！欢迎尊贵的 VIP！🎉</string>
     <string name="toast_lifetime_activated">永久 VIP 已激活！🎉</string>
