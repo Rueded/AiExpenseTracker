@@ -387,21 +387,27 @@ fun HomeScreen(
         },
         floatingActionButton = {
             if (currentScreen == AppScreen.Home) {
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // 🟢 4. 新增：召唤云糯的专属按钮！(用 Tertiary 颜色和原版区分开)
+                // 改为 Row，横向排列
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 1. 回到顶部的逻辑现在在 TransactionListScreen 内部，
+                    // 如果你想让它们统一，可以把“回到顶部”也移到这里，或者保持现状。
+
+                    // 2. 云糯按钮 ( tertiary 颜色 )
                     FloatingActionButton(
                         onClick = { showChatBot = true },
                         containerColor = MaterialTheme.colorScheme.tertiary,
-                        contentColor = MaterialTheme.colorScheme.onTertiary
+                        contentColor = MaterialTheme.colorScheme.onTertiary,
+                        modifier = Modifier.size(48.dp) // 可以稍微缩小一点，更精致
                     ) {
                         Icon(Icons.Default.AutoAwesome, contentDescription = "Chat with AI")
                     }
 
-                    // 🟢 5. 原有的添加按钮 (保持你的逻辑不变)
+                    // 3. 原有的添加按钮
                     FloatingActionButton(
-                        onClick = {
-                            showSourceSelectionDialog = true
-                        },
+                        onClick = { showSourceSelectionDialog = true },
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = Color.White
                     ) {
@@ -2250,7 +2256,7 @@ fun TransactionListScreen(
             }
         }
     ) { innerPadding ->
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp)) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 120.dp, top = 8.dp)) {
 
             if (categoryFilter != null) {
                 item {
