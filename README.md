@@ -1,4 +1,4 @@
-# 🚀 AI Expense Tracker 智能记账管家 (v5.1.0)
+# 🚀 AI Expense Tracker 智能记账管家
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-blue.svg)](https://kotlinlang.org/)
 [![Compose](https://img.shields.io/badge/Jetpack_Compose-Latest-green.svg)](https://developer.android.com/jetpack/compose)
