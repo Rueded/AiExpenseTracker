@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="sharedpref" path="."/>
+
+    <include domain="database" path="ai_expense_tracker_database"/>
+    <include domain="database" path="ai_expense_tracker_database-wal"/>
+    <include domain="database" path="ai_expense_tracker_database-shm"/>
+</full-backup-content>
